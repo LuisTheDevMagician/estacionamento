@@ -15,11 +15,22 @@ public class EstadiaDAO {
 
     // Create
     public void cadastrar(Estadia estadia) throws SQLException {
+        if (estadia.getHorarioEntrada() == null) {
+            throw new IllegalArgumentException("Horário de entrada não pode ser nulo");
+        }
+
         String sql = "INSERT INTO estadia (horario_entrada, horario_saida, id_cliente, id_veiculo, valor) VALUES (?, ?, ?, ?, ?)";
 
         try (PreparedStatement stmt = conexao.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             stmt.setTimestamp(1, Timestamp.valueOf(estadia.getHorarioEntrada()));
-            stmt.setTimestamp(2, Timestamp.valueOf(estadia.getHorarioSaida()));
+
+            // Handle possible null horario_saida
+            if (estadia.getHorarioSaida() != null) {
+                stmt.setTimestamp(2, Timestamp.valueOf(estadia.getHorarioSaida()));
+            } else {
+                stmt.setNull(2, Types.TIMESTAMP);
+            }
+
             stmt.setInt(3, estadia.getIdCliente());
             stmt.setInt(4, estadia.getIdVeiculo());
             stmt.setFloat(5, estadia.getValor());
@@ -40,13 +51,20 @@ public class EstadiaDAO {
 
         try (PreparedStatement stmt = conexao.prepareStatement(sql)) {
             stmt.setInt(1, id);
-
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     estadia = new Estadia();
                     estadia.setId(rs.getInt("id"));
                     estadia.setHorarioEntrada(rs.getTimestamp("horario_entrada").toLocalDateTime());
-                    estadia.setHorarioSaida(rs.getTimestamp("horario_saida").toLocalDateTime());
+
+                    // Handle possible null horario_saida
+                    Timestamp saidaTimestamp = rs.getTimestamp("horario_saida");
+                    if (saidaTimestamp != null) {
+                        estadia.setHorarioSaida(saidaTimestamp.toLocalDateTime());
+                    } else {
+                        estadia.setHorarioSaida(null); // or don't set it if it's already null
+                    }
+
                     estadia.setIdCliente(rs.getInt("id_cliente"));
                     estadia.setIdVeiculo(rs.getInt("id_veiculo"));
                     estadia.setValor(rs.getFloat("valor"));
